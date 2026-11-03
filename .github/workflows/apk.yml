@@ -42,14 +42,24 @@ jobs:
           open('icon.png', 'wb').write(base64.b64decode(b('apk-icon')))
           m = r + 'AndroidManifest.xml'
           x = open(m, encoding='utf-8').read()
-          x, n1 = re.subn(r'</application>', '</application><queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>', x, count=1)
+          x, n1 = re.subn(r'</application>', '</application><queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent><intent><action android:name="android.speech.RecognitionService" /></intent></queries>', x, count=1)
           assert n1 == 1, n1
+          perms = ('<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />'
+                   '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />'
+                   '<uses-permission android:name="android.permission.RECORD_AUDIO" />')
+          x, n2 = re.subn(r'(<application)', perms + r'\1 android:requestLegacyExternalStorage="true"', x, count=1)
+          assert n2 == 1, n2
+          g = 'android/app/build.gradle'
+          t = open(g, encoding='utf-8').read()
+          t, n3 = re.subn(r'(\ndependencies\s*\{)', r"\1\n    implementation 'com.google.mlkit:translate:17.0.3'", t, count=1)
+          assert n3 == 1, n3
+          open(g, 'w', encoding='utf-8').write(t)
           open(m, 'w', encoding='utf-8').write(x)
           PY
           rm -rf $R/res/mipmap-anydpi-v26
           for d in $R/res/mipmap-*dpi; do cp icon.png $d/ic_launcher.png; cp icon.png $d/ic_launcher_round.png; done
           find $R/res -name 'splash.png' -delete; mkdir -p $R/res/drawable
-          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item><shape><gradient android:startColor="#0E0E14" android:endColor="#2A1C12" android:angle="270"/></shape></item><item android:drawable="@mipmap/ic_launcher" android:gravity="center" android:width="120dp" android:height="120dp"/></layer-list>' > $R/res/drawable/splash.xml
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item><shape><gradient android:startColor="#140A24" android:endColor="#2E1650" android:angle="270"/></shape></item><item android:drawable="@mipmap/ic_launcher" android:gravity="center" android:width="120dp" android:height="120dp"/></layer-list>' > $R/res/drawable/splash.xml
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
       - name: Signer et publier
@@ -71,3 +81,4 @@ jobs:
           git commit -m "APK Micaplays 1.${{ github.run_number }}"
           git pull --rebase origin main
           git push
+ 
